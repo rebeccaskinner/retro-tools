@@ -16,15 +16,9 @@ type Msg = AddNote
     | DragAt Position
     | DragStop Position
 
-type alias DragNote =
-    { start : Position
-    , current : Position
-    }
-
 type alias Model =
     { notes : List Notecard -- todo; use a zipper to speed up dragging
     , noteIndex : Int
-    , drag : Maybe DragNote
     , selected : Maybe Int
     }
 
@@ -41,7 +35,7 @@ subscriptions model =
         Just idx ->
             Sub.batch [ Mouse.moves DragAt, Mouse.ups DragStop ]
 emptyModel : Model
-emptyModel = Model [] 0 Nothing Nothing
+emptyModel = Model [] 0 Nothing
 
 init : ( Model, Cmd Msg )
 init = ( emptyModel, Cmd.none )
@@ -50,27 +44,26 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = ( updateHelp msg model, Cmd.none )
 
 updateHelp : Msg -> Model -> Model
-updateHelp msg ({ notes, noteIndex, drag, selected } as model) =
+updateHelp msg ({ notes, noteIndex, selected } as model) =
     case msg of
         AddNote ->
             let
                 idx_ = noteIndex + 1
                 pos = Position (100 * idx_) (100 * idx_)
                 note = Notecard pos (toString idx_)
-            in Model (note :: notes) idx_ drag selected
+            in Model (note :: notes) idx_ selected
         DragStart idx pos ->
             let updatef = \note -> { note | position = pos }
                 notes_ = updateAt idx updatef notes
             in
-            { model | selected = Just idx, notes = notes_, drag = Just (DragNote pos pos)}
+            { model | selected = Just idx, notes = notes_}
         DragAt pos ->
             let
-                drag_ = Maybe.map (\d -> {d | current = pos}) drag
                 updatef = \note -> { note | position = pos }
                 idx = Maybe.withDefault 0 selected
                 notes_ = updateAt idx updatef notes
-            in {model | drag = drag_, notes = notes_}
-        DragStop pos -> { model | selected = Nothing, drag = Nothing }
+            in {model | notes = notes_}
+        DragStop pos -> { model | selected = Nothing}
 
 -- VIEW
 (=>) = (,)
@@ -98,10 +91,9 @@ isJust m =
         _ -> True
 
 debugModel : Model -> IO
-debugModel ({notes, noteIndex, drag, selected}) =
+debugModel ({notes, noteIndex, selected}) =
     logIO "note count: " (List.length notes) IO |>
     logIO "note index: " noteIndex |>
-    logIO "drag: " (toString drag) |>
     logIO "selected: " selected
 
 mvNotecardAttr : Int -> Attribute Msg
