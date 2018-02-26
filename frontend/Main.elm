@@ -7,6 +7,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick)
 import Json.Decode as Decode
 import List.Extra as L
+-- import List.Zipper as Zipper
 import Debug exposing (log)
 import Mouse exposing (Position)
 
@@ -21,7 +22,7 @@ type alias DragNote =
     }
 
 type alias Model =
-    { notes : List Notecard
+    { notes : List Notecard -- todo; use a zipper to speed up dragging
     , noteIndex : Int
     , drag : Maybe DragNote
     , selected : Maybe Int
@@ -57,12 +58,29 @@ updateHelp msg ({ notes, noteIndex, drag, selected } as model) =
                 pos = Position (100 * idx_) (100 * idx_)
                 note = Notecard pos (toString idx_)
             in Model (note :: notes) idx_ drag selected
-        DragStart idx pos -> { model | selected = Just idx}
-        DragAt pos -> model
-        DragStop pos -> { model | selected = Nothing }
+        DragStart idx pos ->
+            let updatef = \note -> { note | position = pos }
+                notes_ = updateAt idx updatef notes
+            in
+            { model | selected = Just idx, notes = notes_, drag = Just (DragNote pos pos)}
+        DragAt pos ->
+            let
+                drag_ = Maybe.map (\d -> {d | current = pos}) drag
+                updatef = \note -> { note | position = pos }
+                idx = Maybe.withDefault 0 selected
+                notes_ = updateAt idx updatef notes
+            in {model | drag = drag_, notes = notes_}
+        DragStop pos -> { model | selected = Nothing, drag = Nothing }
 
 -- VIEW
 (=>) = (,)
+
+-- todo: make this not run the entire list after we've found idx
+updateAt : Int -> (a -> a) -> List a -> List a
+updateAt idx f l =
+    let f_ = \idx_ v -> if idx_ == idx then f v else v
+    in List.indexedMap f_ l
+
 view : Model -> Html Msg
 view ({ notes, noteIndex } as model) =
     let render_ = \idx c -> renderNotecard c [mvNotecardAttr idx]
@@ -83,7 +101,7 @@ debugModel : Model -> IO
 debugModel ({notes, noteIndex, drag, selected}) =
     logIO "note count: " (List.length notes) IO |>
     logIO "note index: " noteIndex |>
-    logIO "dragging: " (isJust drag) |>
+    logIO "drag: " (toString drag) |>
     logIO "selected: " selected
 
 mvNotecardAttr : Int -> Attribute Msg
