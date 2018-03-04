@@ -6,7 +6,6 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick)
 import Json.Decode as Decode
-import Debug exposing (log)
 import Mouse exposing (Position)
 import List.Extra exposing (updateAt)
 
@@ -19,7 +18,6 @@ type Msg = AddNote
 type alias Model =
     { notes : List Notecard -- todo; use a zipper to speed up dragging
     , noteIndex : Int
---    , selected : Maybe Int
     , drag : Maybe DragState
     }
 
@@ -34,8 +32,7 @@ type alias Notecard =
     , contents : String
     }
 
-type IO = IO
-
+subscriptions : Model -> Sub Msg
 subscriptions model =
     case model.drag of
         Nothing -> Sub.none
@@ -153,11 +150,6 @@ addBtn =
 
 px : Int -> String
 px number = toString number ++ "px"
-
-sparseList : Int -> (Int, a) -> List (Maybe a)
-sparseList len vals =
-    let base = List.repeat len Nothing
-    in base
 
 main =
     Html.program
